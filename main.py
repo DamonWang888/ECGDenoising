@@ -2,7 +2,7 @@ from  model import  *
 from PreProcess import  *
 
 def slice_signal(Clean,Noisy,length):
-
+    pass
 
 TrainSet=[]
 ValSet=[]
