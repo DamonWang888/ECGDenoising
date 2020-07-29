@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 import ipdb
+from scipy.io import loadmat
 plt.rcParams['figure.figsize']=(10,10)
 
 # load data from nstdb
@@ -34,6 +35,22 @@ def load_data(fileDir):
         ECG.append(sample[0][:,1])
     ECG = np.asarray(ECG)
     return ECG
+def load_ppg(FilePath):
+    originalData=loadmat(FilePath)
+    # print(originalData)
+    ppg=originalData['ppg']
+    return  ppg
+    # print(ppg.shape)
+def load_noisy(FilePath):
+    originaldata=wfdb.rdsamp(FilePath)
+    noisydata=originaldata[0]
+    print(noisydata.shape)
+    return noisydata
+def generate_signal():
+    '''
+    according to the given snr to generate all kinds of noisy level signal
+    :return:
+    '''
 
 
 # load_data('/home/wcj/DataSet/physionet.org/files/nstdb/1.0.0')
@@ -59,15 +76,15 @@ def load_data(fileDir):
 # plt.show()
 
 # read clean ecg
-data118=wfdb.rdsamp('/home/wcj/DataSet/physionet.org/files/mitdb/1.0.0/118')
-data119=wfdb.rdsamp('/home/wcj/DataSet/physionet.org/files/mitdb/1.0.0/119')
-print(data118)
-plt.plot(data118[0][1:1000,1],label='118')
-plt.plot(data119[0][1:1000,1],label='119')
-plt.legend()
-plt.show()
+# data118=wfdb.rdsamp('/home/wcj/DataSet/physionet.org/files/mitdb/1.0.0/118')
+# data119=wfdb.rdsamp('/home/wcj/DataSet/physionet.org/files/mitdb/1.0.0/119')
+# print(data118)
+# plt.plot(data118[0][1:1000,1],label='118')
+# plt.plot(data119[0][1:1000,1],label='119')
+# plt.legend()
+# plt.show()
 
 
 
-
-
+# load_ppg('/home/wcj/CurrentProject/ppgalgorithm/Troika/Data/bandpassppg.mat')
+# load_noisy('/home/wcj/DataSet/physionet.org/files/nstdb/1.0.0/em')
