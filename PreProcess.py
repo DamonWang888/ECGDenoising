@@ -4,6 +4,7 @@ import os
 import numpy as np
 import ipdb
 from scipy.io import loadmat
+import math
 plt.rcParams['figure.figsize']=(10,10)
 
 # load data from nstdb
@@ -44,14 +45,17 @@ def load_ppg(FilePath):
 def load_noisy(FilePath):
     originaldata=wfdb.rdsamp(FilePath)
     noisydata=originaldata[0]
-    print(noisydata.shape)
+    # print(noisydata.shape)
     return noisydata
-def generate_signal():
+def generate_signal(snr,ppg,noisy):
     '''
     according to the given snr to generate all kinds of noisy level signal
+    reference snr=10*log(S/(N*a*a))
     :return:
     '''
-
+    a=1
+    noisydata=math.pow(snr/10)*noisy**2*a**2
+    return noisydata
 
 # load_data('/home/wcj/DataSet/physionet.org/files/nstdb/1.0.0')
 

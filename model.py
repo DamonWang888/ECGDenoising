@@ -61,9 +61,10 @@ class ECGDAE:
         model.add(keras.layers.PReLU())
         return  model
 
-print(tf.__version__)
-ECGDAEModel=ECGDAE(1,1000).build()
-ECGDAEModel.summary()
 
 # InputData=np.random.rand(1,1000)
 # print(InputData.shape)
+if __name__ == '__main__':
+    print(tf.__version__)
+    ECGDAEModel = ECGDAE(1, 1000).build()
+    ECGDAEModel.summary()
