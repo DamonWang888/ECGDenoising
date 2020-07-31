@@ -3,9 +3,10 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 import ipdb
-from scipy.io import loadmat
+from scipy.io import loadmat,savemat
 import math
-plt.rcParams['figure.figsize']=(10,10)
+from sklearn import  preprocessing
+plt.rcParams['figure.figsize']=(30,10)
 
 # load data from nstdb
 # *********noisy type**********
@@ -47,48 +48,63 @@ def load_noisy(FilePath):
     noisydata=originaldata[0]
     # print(noisydata.shape)
     return noisydata
-def generate_signal(snr,ppg,noisy):
+
+def calculategain(snr,ppg,noisy):
     '''
-    according to the given snr to generate all kinds of noisy level signal
-    reference snr=10*log(S/(N*a*a))
+    
+    :param snr: 
+    :param ppg: 
+    :param noisy: 
+    :return: gain(增益)
+    :according to the given snr to generate all kinds of noisy level signal
+    :reference snr=10*log(S/(N*a*a))
+    '''
+    # return math.sqrt(np.sum(ppg**2)/(np.sum(ppg**2)/(math.pow(10,snr/10)*np.sum(noisy**2))))
+    return math.sqrt(np.sum(ppg**2)/(math.pow(10,snr/10)*np.sum(noisy**2)))
+
+def generate_signal(gain,clean,noisy):
+    '''
     :return:
+    gain*preprocessing.scale(noisy)
     '''
-    a=1
-    noisydata=math.pow(snr/10)*noisy**2*a**2
+    # noisydata = preprocessing.scale(clean) + gain*preprocessing.scale(noisy)
+    # noisydata=preprocessing.scale(clean)+gain*noisy
+    noisydata = clean + gain * noisy
     return noisydata
 
-# load_data('/home/wcj/DataSet/physionet.org/files/nstdb/1.0.0')
+if __name__ == '__main__':
+    # load_data('/home/wcj/DataSet/physionet.org/files/nstdb/1.0.0')
 
-# original_data=wfdb.rdsamp('/home/wcj/DataSet/physionet.org/files/nstdb/1.0.0/ma')
-# print(original_data)
-# print(original_data[1]['comments'])
-# print(type(original_data[1]['comments']))
-# print(len(original_data[1]['comments']))
-# print(original_data[1]['comments'][0].split(' ')[-2])
+    # original_data=wfdb.rdsamp('/home/wcj/DataSet/physionet.org/files/nstdb/1.0.0/118e06')
+    # print(original_data)
+    # print(original_data[1]['comments'])
+    # print(type(original_data[1]['comments']))
+    # print(len(original_data[1]['comments']))
+    # print(original_data[1]['comments'][0].split(' ')[-2])
 
-# show noisy data
-# em_data=wfdb.rdsamp('/home/wcj/DataSet/physionet.org/files/nstdb/1.0.0/em')
-# bw_data=wfdb.rdsamp('/home/wcj/DataSet/physionet.org/files/nstdb/1.0.0/bw')
-# ma_data=wfdb.rdsamp('/home/wcj/DataSet/physionet.org/files/nstdb/1.0.0/ma')
-# print("em_data:",em_data)
-# print("bw_data:",bw_data)
-# print("ma_data:",ma_data)
-# plt.plot(em_data[0][1:1000,1],label='em')
-# plt.plot(bw_data[0][1:1000,1],label='bw')
-# plt.plot(ma_data[0][1:1000,1],label='ma')
-# plt.legend()
-# plt.show()
+    # show noisy data
+    em_data = wfdb.rdsamp('/home/wcj/DataSet/physionet.org/files/nstdb/1.0.0/em')
+    bw_data = wfdb.rdsamp('/home/wcj/DataSet/physionet.org/files/nstdb/1.0.0/bw')
+    ma_data = wfdb.rdsamp('/home/wcj/DataSet/physionet.org/files/nstdb/1.0.0/ma')
+    print("em_data:", em_data)
+    print("bw_data:", bw_data)
+    print("ma_data:", ma_data)
+    plt.plot(em_data[0][1:1000, 1], label='em')
+    plt.plot(bw_data[0][1:1000, 1], label='bw')
+    plt.plot(ma_data[0][1:1000, 1], label='ma')
+    plt.legend()
+    plt.show()
 
-# read clean ecg
-# data118=wfdb.rdsamp('/home/wcj/DataSet/physionet.org/files/mitdb/1.0.0/118')
-# data119=wfdb.rdsamp('/home/wcj/DataSet/physionet.org/files/mitdb/1.0.0/119')
-# print(data118)
-# plt.plot(data118[0][1:1000,1],label='118')
-# plt.plot(data119[0][1:1000,1],label='119')
-# plt.legend()
-# plt.show()
+    # read clean ecg
+    data118 = wfdb.rdsamp('/home/wcj/DataSet/physionet.org/files/mitdb/1.0.0/118')
+    # data119=wfdb.rdsamp('/home/wcj/DataSet/physionet.org/files/mitdb/1.0.0/119')
+    # original_data=wfdb.rdsamp('/home/wcj/DataSet/physionet.org/files/nstdb/1.0.0/118e00')
+    # print(data118)
+    # plt.plot(data118[0][1:1000,1],'r-',label='118e00')
+    plt.plot(data118[0][1:1000, 1], label='118')
+    # plt.plot(data119[0][1:1000,1],label='119')
+    plt.legend()
+    plt.show()
 
-
-
-# load_ppg('/home/wcj/CurrentProject/ppgalgorithm/Troika/Data/bandpassppg.mat')
-# load_noisy('/home/wcj/DataSet/physionet.org/files/nstdb/1.0.0/em')
+    # load_ppg('/home/wcj/CurrentProject/ppgalgorithm/Troika/Data/bandpassppg.mat')
+    # load_noisy('/home/wcj/DataSet/physionet.org/files/nstdb/1.0.0/em')
