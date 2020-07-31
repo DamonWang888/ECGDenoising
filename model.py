@@ -62,9 +62,10 @@ class ECGDAE:
         return  model
 
 
-# InputData=np.random.rand(1,1000)
-# print(InputData.shape)
+
 if __name__ == '__main__':
+    # InputData=np.random.rand(1,1000)
+    # print(InputData.shape)
     print(tf.__version__)
     ECGDAEModel = ECGDAE(1, 1000).build()
     ECGDAEModel.summary()
