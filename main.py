@@ -135,7 +135,7 @@ def GetDataSet():
     clean_ppg_path='/home/wcj/CurrentProject/ECGDenoising/ppg_clean.mat';
     original_data=loadmat(clean_ppg_path);
     clean_ppg=original_data['sig']
-    print('clean ppg shape:',clean_ppg.shape)
+    # print('clean ppg shape:',clean_ppg.shape)
 
     TypeNoisy = ['ma', 'bw', 'em']
     for i, type in enumerate(TypeNoisy):
@@ -147,7 +147,7 @@ def GetDataSet():
             noisy_ppg = original_data['sig']
             total_noisy_ppg.append(noisy_ppg)
     total_noisy_ppg=np.array(total_noisy_ppg).reshape(-1,1000)
-    print('noisy ppg shape',total_noisy_ppg.shape)
+    # print('noisy ppg shape',total_noisy_ppg.shape)
 
 
 
@@ -168,12 +168,12 @@ def GetDataSet():
     TestCleanSet=clean_ppg[index2:total_count][:]
     TestNoisytSet=total_noisy_ppg[index2:total_count][:]
 
-    print('TrainCleanSet:',TrainCleanSet.shape)
-    print('TrainNoisySet:',TrainNoisySet.shape)
-    print('ValCleanSet:',ValCleanSet.shape)
-    print('ValNoisySet:',ValNoisySet.shape)
-    print('TestCleanSet:',TestCleanSet.shape)
-    print('TestNoisytSet:',TestNoisytSet.shape)
+    # print('TrainCleanSet:',TrainCleanSet.shape)
+    # print('TrainNoisySet:',TrainNoisySet.shape)
+    # print('ValCleanSet:',ValCleanSet.shape)
+    # print('ValNoisySet:',ValNoisySet.shape)
+    # print('TestCleanSet:',TestCleanSet.shape)
+    # print('TestNoisytSet:',TestNoisytSet.shape)
 
     return TrainCleanSet,TrainNoisySet,ValCleanSet,ValNoisySet,TestCleanSet,TestNoisytSet
 
@@ -193,8 +193,29 @@ def GetDataSet():
     print('noisy ppg shape', noisy_ppg.shape)
     '''
 def train():
-    pass
+    model=ECGDAE(1, 1000).build()
+    opt = tf.keras.optimizers.Adam(lr=0.001)
+    model.compile(loss="mean_squared_error", optimizer=opt,
+                  metrics=["accuracy"])
+
+    TrainCleanSet, TrainNoisySet, ValCleanSet, ValNoisySet, TestCleanSet, TestNoisytSet=GetDataSet()
+    TrainCleanSet = TrainCleanSet.reshape(-1,1000,1);
+    TrainNoisySet = TrainNoisySet.reshape(-1, 1000,1);
+    ValCleanSet = ValCleanSet.reshape(-1, 1000,1);
+    ValNoisySet = ValNoisySet.reshape(-1, 1000,1);
+    TestCleanSet = TestCleanSet.reshape(-1, 1000,1);
+    TestNoisytSet = TestNoisytSet.reshape(-1, 1000,1);
+
+    import datetime
+
+    logdir = "./keras_model/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    tensorboard_callback = tf.keras.callbacks.TensorBoard(logdir, histogram_freq=1)
+    history = model.fit(x=TrainNoisySet, y=TrainCleanSet, batch_size=100,
+        validation_data=(ValNoisySet, ValCleanSet),
+        steps_per_epoch=len(TrainCleanSet) // 100,
+        epochs=50, verbose=1, callbacks=[tensorboard_callback])
 
 # init()
 # save_slicesignal()
-GetDataSet()
+
+train()
