@@ -194,17 +194,11 @@ def GetDataSet():
     '''
 def train():
     model=ECGDAE(1, 1000).build()
-    opt = tf.keras.optimizers.Adam(lr=0.001)
-    model.compile(loss="mean_squared_error", optimizer=opt,
-                  metrics=["accuracy"])
+    opt = tf.keras.optimizers.Adam(lr=0.0001)
+    model.compile(loss="mse", optimizer=opt,
+                  metrics=[keras.metrics.MeanSquaredError()])
 
-    TrainCleanSet, TrainNoisySet, ValCleanSet, ValNoisySet, TestCleanSet, TestNoisytSet=GetDataSet()
-    TrainCleanSet = TrainCleanSet.reshape(-1,1000,1);
-    TrainNoisySet = TrainNoisySet.reshape(-1, 1000,1);
-    ValCleanSet = ValCleanSet.reshape(-1, 1000,1);
-    ValNoisySet = ValNoisySet.reshape(-1, 1000,1);
-    TestCleanSet = TestCleanSet.reshape(-1, 1000,1);
-    TestNoisytSet = TestNoisytSet.reshape(-1, 1000,1);
+
 
     import datetime
 
@@ -212,10 +206,51 @@ def train():
     tensorboard_callback = tf.keras.callbacks.TensorBoard(logdir, histogram_freq=1)
     history = model.fit(x=TrainNoisySet, y=TrainCleanSet, batch_size=100,
         validation_data=(ValNoisySet, ValCleanSet),
-        steps_per_epoch=len(TrainCleanSet) // 100,
-        epochs=50, verbose=1, callbacks=[tensorboard_callback])
+        epochs=100, verbose=1, callbacks=[tensorboard_callback])
 
+    model.save('./data/tf_model_savedmodel', save_format="tf")
+    print('export saved model.')
+# steps_per_epoch=len(TrainCleanSet) // 100,
 # init()
 # save_slicesignal()
 
-train()
+def test():
+    model=keras.models.load_model('./data/tf_model_savedmodel')
+    GeneratePPG=model.predict(TestNoisytSet)
+    TotalAE=[]
+    for i in range(TestNoisytSet.shape[0]):
+        cur_snr = snr_pred(TestCleanSet[i], GeneratePPG[i])
+        ori_snr = snr_pred(TestCleanSet[i], TestNoisytSet[i])
+        ae=abs(cur_snr-ori_snr)
+        TotalAE.append(ae)
+    print('average increased snr:',np.mean(TotalAE))
+    '''
+    visual
+    '''
+    fig = plt.figure(figsize=(20, 100))
+    for i in range(10):
+        fig.add_subplot(10, 1, i + 1)
+        # if i % 2 == 0:
+        plt.plot(GeneratePPG[int(i/2)],label='denoise')
+        plt.plot(TestCleanSet[int(i/2)],label='clean')
+        plt.plot(TestNoisytSet[int(i/2)],label='noisy')
+        plt.legend()
+        cur_snr=snr_pred(TestCleanSet[int(i/2)],GeneratePPG[int(i/2)])
+        ori_snr=snr_pred(TestCleanSet[int(i/2)],TestNoisytSet[int(i/2)])
+        plt.title('ori_snr:'+str(ori_snr)+' cur_snr:'+str(cur_snr))
+        # else:
+        #     plt.plot(TestCleanSet[int(i/2)],label='clean')
+        #     plt.title('clean')
+    plt.show()
+    # print(GeneratePPG.shape)
+
+if __name__=='__main__':
+    TrainCleanSet, TrainNoisySet, ValCleanSet, ValNoisySet, TestCleanSet, TestNoisytSet=GetDataSet()
+    TrainCleanSet = TrainCleanSet.reshape(-1,1000,1);
+    TrainNoisySet = TrainNoisySet.reshape(-1, 1000,1);
+    ValCleanSet = ValCleanSet.reshape(-1, 1000,1);
+    ValNoisySet = ValNoisySet.reshape(-1, 1000,1);
+    TestCleanSet = TestCleanSet.reshape(-1, 1000,1);
+    TestNoisytSet = TestNoisytSet.reshape(-1, 1000,1);
+    # train()
+    test()

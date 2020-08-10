@@ -18,6 +18,20 @@ from tensorflow.keras.layers import Conv2DTranspose, Lambda
 #     x = Lambda(lambda x: K.squeeze(x, axis=2))(x)
 #     return x
 
+'''
+define own metric function
+'''
+def snr_pred(y_true, y_pred):
+    '''
+    :param y_true:
+    :param y_pred:
+    :return: snr
+    '''
+    dif=y_pred-y_true
+    overall_snr = 10 * np.log10(np.sum(y_true ** 2) / (np.sum(dif ** 2) +
+                                                        10e-20))
+    return overall_snr
+
 class Conv1DTranspose(tf.keras.layers.Layer):
     def __init__(self, filters, kernel_size, strides=1, padding='valid',output_padding=None):
         super().__init__()
