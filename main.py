@@ -260,7 +260,7 @@ class OriData(data.Dataset):
         return self.cleandata.shape[0]
 def trainAutoEncoder():
     batch_size=128
-    epochs=50
+    epochs=1
     iteration = 0
     numepoch = 0
     device = 'cpu'
@@ -280,7 +280,7 @@ def trainAutoEncoder():
     TestLoader=DataLoader(testset,batch_size=batch_size,shuffle=False,num_workers=8,pin_memory=CUDA)
     print(TrainLoader.__len__(),ValLoader.__len__(),TestLoader.__len__())
     DAE.to(device)
-    DAE=DAE.double()
+    # DAE=DAE.double()
     optimizer = optim.Adam(DAE.parameters(), lr=0.001)
     # optimizer = optim.RMSprop(DAE.parameters(), lr=0.001)
     scheduler = lr_scheduler.StepLR(optimizer, 10, 0.1)  # # 每过3个epoch，学习率乘以0.1
@@ -305,8 +305,11 @@ def trainAutoEncoder():
             # return
             # clean = clean.unsqueeze(1)
             # noisy = noisy.unsqueeze(1)
+            # print(clean)
             clean = clean.to(device)
             noisy = noisy.to(device)
+            noisy=noisy.float()
+            clean=clean.float()
             # print(noisy.shape)
             optimizer.zero_grad()
             output=DAE(noisy)
@@ -322,8 +325,9 @@ def trainAutoEncoder():
     print('finish training')
     savemodelname=datetime.datetime.now().strftime("%Y%m%d-%H%M%S")+('epoch-%d-iteration%d.pt'%(numepoch,iteration))
     model = DAE.cpu()
+    model=model.eval()
     x = torch.rand(1, 1000)
-    x=x.double()
+    # x=x.double()
     traced_module = torch.jit.trace(model, x)
     traced_module.save(savemodelname)
     # torch.save(DAE.state_dict(),savemodelname)
@@ -364,14 +368,15 @@ def TestAutoEncoder():
         device = 'cuda'
 
     # model.load_state_dict(torch.load('./20200828-092545epoch-1-iteration325.pt'))
-    model=torch.jit.load('./20200830-202256epoch-50-iteration19100.pt')
+    model=torch.jit.load('./20200831-172652epoch-1-iteration382.pt')
     # model_dict = model.state_dict()
     # print(model)
     TrainCleanSet, TrainNoisySet, ValCleanSet, ValNoisySet, TestCleanSet, TestNoisytSet = GetDataSet()
     model.to(device)
-    model=model.double()
+    # model=model.double()
     model.eval()
-    for i in range(5000,5100,5):
+    for i in range(1):
+    # for i in range(5000,5100,5):
     # for i in range(ValNoisySet.shape[0]):
 
         testdata=ValNoisySet[i]
@@ -382,8 +387,12 @@ def TestAutoEncoder():
         testdata=testdata.reshape(1,-1)
         testdata=torch.from_numpy(testdata)
         testdata=testdata.to(device)
+        testdata = testdata.float()
+        print('******:',testdata.type())
+        # testdata = testdata.float()
         # print(testdata.shape)
         output=model(testdata)
+        print('******:',output.type())
         # print(output.shape)
         output=output.detach().cpu().numpy()
         plt.plot(output[0],label='denoise')
@@ -398,7 +407,7 @@ def TestOnRealNoisyData():
         device = 'cuda'
 
     # model.load_state_dict(torch.load('./20200828-092545epoch-1-iteration325.pt'))
-    model = torch.jit.load('./20200830-202256epoch-50-iteration19100.pt')
+    model = torch.jit.load('./20200831-143649epoch-50-iteration19100.pt')
     # model_dict = model.state_dict()
     # print(model)
     noisysig=load_ecgsegment('./ecg_wcj_8_27_noisy.mat')
@@ -415,6 +424,7 @@ def TestOnRealNoisyData():
         plt.plot(testdata[0],label='noisy')
         testdata = torch.from_numpy(testdata)
         testdata = testdata.to(device)
+
         # print(testdata.shape)
         output = model(testdata)
         output = output.detach().cpu().numpy()
@@ -503,3 +513,10 @@ if __name__=='__main__':
     # d=np.array(d)
     # d=d.reshape(1,-1)
     # print(d)
+
+    # x=torch.rand(1,1000)
+    # print(x.shape)
+    # # x=torch.from_numpy(x)
+    # x=x.unsqueeze(1)
+    # # x=x.unsqueeze(2)
+    # print(x.shape)
