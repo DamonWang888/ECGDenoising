@@ -33,8 +33,13 @@ def load_data(fileDir):
         base = os.path.splitext(base)[0]
         print(fileDir+'/%s'%(base))
         sample = wfdb.rdsamp(fileDir+'/%s'%(base))
-        print(sample[1]['comments'])
+        # print(sample[1]['comments'])
+        # print(sample[0][:,1].shape)
         ECG.append(sample[0][:,1])
+        ECG.append(sample[0][:,0])
+        # plt.plot(sample[0][1:1000,1])
+        # plt.show()
+        # break
     ECG = np.asarray(ECG)
     return ECG
 def load_ppg(FilePath):
@@ -43,12 +48,46 @@ def load_ppg(FilePath):
     ppg=originalData['ppg']
     return  ppg
     # print(ppg.shape)
+def load_ecg(filepath):
+    # judge file suffix
+    if filepath.split('/')[-1][-4:]=='.mat':
+        signal=loadmat(filepath)
+        signal=signal['ecg']
+    else:
+        ecgsignal=np.load(filepath,allow_pickle=True)
+        # totalsig=[]
+        for i in range(ecgsignal.shape[0]):
+            # print(ecgsignal[i].shape)
+            if i==0:
+                signal =ecgsignal[i]
+            else:
+                signal=np.concatenate((signal, ecgsignal[i]), axis=0)
+            # totalsig.append(ecgsignal[i])
+        # totalsig=np.array(totalsig)
+        # print(signal.shape)
+        # print('ecgsignal shape:',ecgsignal.shape)
+        # print('type ecgsignal:',type(ecgsignal))
+        # print(ecgsignal[1].shape)
+
+        #show the clean ecg data
+        # signal=signal.reshape(1,-1)
+        # for i in range(5):
+        #     plt.plot(signal[0][i*125:(i+1)*125],label='clean')
+        #     plt.legend()
+        #     plt.show()
+    return signal
 def load_noisy(FilePath):
     originaldata=wfdb.rdsamp(FilePath)
     noisydata=originaldata[0]
     # print(noisydata.shape)
     return noisydata
-
+def load_ecgsegment(FilePath):
+    originalData = loadmat(FilePath)
+    # print(originalData)
+    ecg = originalData['ecg_segment']
+    ecg=ecg.reshape(1,-1)
+    return ecg
+    # print(ppg.shape)
 def calculategain(snr,ppg,noisy):
     '''
     
@@ -73,14 +112,20 @@ def generate_signal(gain,clean,noisy):
     return noisydata
 
 if __name__ == '__main__':
-    # load_data('/home/wcj/DataSet/physionet.org/files/nstdb/1.0.0')
+    '''
+    ecgpath = '/home/wcj/CurrentProject/EmotionRecongntion/dreamer-data/data1.npy'
+    load_ecg(ecgpath)
+    a=np.array([[1,2,3]])
+    b=np.array([[4,5,7]])
+    print(a.shape)
+    print(b.shape)
+    c=np.concatenate((a,b),axis=0)
+    print(c.shape)
+    c=c.reshape(-1)
+    print(c)
+    '''
 
-    # original_data=wfdb.rdsamp('/home/wcj/DataSet/physionet.org/files/nstdb/1.0.0/118e06')
-    # print(original_data)
-    # print(original_data[1]['comments'])
-    # print(type(original_data[1]['comments']))
-    # print(len(original_data[1]['comments']))
-    # print(original_data[1]['comments'][0].split(' ')[-2])
+    '''
 
     # show noisy data
     em_data = wfdb.rdsamp('/home/wcj/DataSet/physionet.org/files/nstdb/1.0.0/em')
@@ -95,16 +140,39 @@ if __name__ == '__main__':
     plt.legend()
     plt.show()
 
-    # read clean ecg
-    data118 = wfdb.rdsamp('/home/wcj/DataSet/physionet.org/files/mitdb/1.0.0/118')
-    # data119=wfdb.rdsamp('/home/wcj/DataSet/physionet.org/files/mitdb/1.0.0/119')
-    # original_data=wfdb.rdsamp('/home/wcj/DataSet/physionet.org/files/nstdb/1.0.0/118e00')
-    # print(data118)
-    # plt.plot(data118[0][1:1000,1],'r-',label='118e00')
-    plt.plot(data118[0][1:1000, 1], label='118')
-    # plt.plot(data119[0][1:1000,1],label='119')
-    plt.legend()
-    plt.show()
-
+    
     # load_ppg('/home/wcj/CurrentProject/ppgalgorithm/Troika/Data/bandpassppg.mat')
     # load_noisy('/home/wcj/DataSet/physionet.org/files/nstdb/1.0.0/em')
+    '''
+
+    # load mit ecg database data and save to mat file
+    # ecg=load_data('/home/wcj/DataSet/physionet.org/files/mitdb/1.0.0')
+    # ecg=ecg.reshape(1,-1)
+    # print(ecg.shape)
+    # savemat('mit_oriecg.mat',{'ecg':ecg})
+    # plt.plot(ecg[0,3000:4000])
+    # plt.show()
+
+    # original_data=wfdb.rdsamp('/home/wcj/DataSet/physionet.org/files/nstdb/1.0.0/118e06')
+    # original_data = wfdb.rdsamp('/home/wcj/DataSet/physionet.org/files/mitdb/1.0.0/222')
+    # print(original_data[0].shape)
+    # plt.plot(original_data[0][1:1000,0])
+    # plt.show()
+    # print(original_data[1]['comments'])
+    # print(type(original_data[1]['comments']))
+    # print(len(original_data[1]['comments']))
+    # print(original_data[1]['comments'][0].split(' ')[-2])
+
+    '''
+    test code
+    '''
+    # filepath='/home/wcj/CurrentProject/ECGDenoising/mit_oriecg.mat'
+    # print(filepath.split('/')[-1][-4:])
+
+
+    # b=[]
+    # for i in range(20):
+    #     b.append(i)
+    # b=np.array(b).reshape(1,-1)
+    # for j in range(5):
+    #     print(b[0,j*4:(j+1)*4])
