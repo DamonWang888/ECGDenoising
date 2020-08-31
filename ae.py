@@ -43,12 +43,12 @@ class Encoder(nn.Module):
 
     def forward(self, input):
         #print('Encoder input shape:', input.shape)
-        input=input.unsqueeze(1)
+        input=torch.unsqueeze(input,1)
         if isinstance(input.data, torch.cuda.FloatTensor) and self.ngpu > 1:
             output = nn.parallel.data_parallel(self.enc, input, range(self.ngpu))
         else:
             output = self.enc(input)
-            # print('Encoder output shape:', output.shape)
+            print('Encoder output shape:', output.shape)
         return output
 
 
@@ -92,8 +92,8 @@ class Decoder(nn.Module):
         self.dec = dec
 
     def forward(self, input):
-        #print('Decoder input shape:', input.shape)
-        # input = input.unsqueeze(1)
+        # input = torch.unsqueeze(input,1)
+        # print('Decoder input shape:', input.shape)
         if isinstance(input.data, torch.cuda.FloatTensor) and self.ngpu > 1:
             output = nn.parallel.data_parallel(self.dec, input, range(self.ngpu))
         else:
@@ -143,7 +143,7 @@ class AutoEncoder(nn.Module):
             output = nn.parallel.data_parallel(self.ae, input, range(self.ngpu))
         else:
             output = self.ae(input)
-        output=output.squeeze(1)
+        output=torch.squeeze(output,1)
         return output
 
 class LinearAutoEncoder(nn.Module):
