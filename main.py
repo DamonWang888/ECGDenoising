@@ -1,6 +1,12 @@
 from  model import  *
 from PreProcess import  *
-
+from ae import  *
+from torch.utils import data
+from torch.utils.data import DataLoader
+import torch.optim as optim
+import datetime
+from torch.optim import lr_scheduler # 学习率衰减
+import os
 # TrainNoisySet=[]
 # ValNoisySet=[]
 # TestNoisytSet=[]
@@ -12,17 +18,26 @@ from PreProcess import  *
 
 def save_slicesignal():
     ppgsignal=[]
-    ppgcleanfrag=[]
-    ppgnoisyfrag={}
+    syncleanfraq=[]
+    synnoisyfraq={}
     noisyfrag=[]
     SignalLength=1000
 
     ppgpath1 = '/home/wcj/CurrentProject/ppgalgorithm/Troika/Data/bandpassppg.mat'
     ppgpath2 = '/home/wcj/CurrentProject/ppgalgorithm/Troika/Data/bandpassppg1.mat'
+    # ecgpath='/home/wcj/CurrentProject/EmotionRecongntion/dreamer-data/data1.npy'
+    ecgpath1='/home/wcj/CurrentProject/ECGDenoising/mit_sample_ecg.mat'
+    ecgpath2='/home/wcj/CurrentProject/ECGDenoising/ecg_wcj_8_27_denoise.mat'
+    ecgpath3='/home/wcj/CurrentProject/ECGDenoising/ecg_8_15_bandpass.mat'
+    # mitecg='/ho'
+
     empath = '/home/wcj/DataSet/physionet.org/files/nstdb/1.0.0/em'
     bwpath = '/home/wcj/DataSet/physionet.org/files/nstdb/1.0.0/bw'
     mapath = '/home/wcj/DataSet/physionet.org/files/nstdb/1.0.0/ma'
 
+    # ecgsignal=load_ecg(ecgpath1)
+    ecgsignal=load_ecgsegment(ecgpath3)
+    # ecgsignal=ecgsignal*10
     ppgsignal1 = load_ppg(ppgpath1)
     ppgsignal2 = load_ppg(ppgpath2)
     # ppgsignal1=np.reshape(ppgsignal1,(-1))
@@ -33,17 +48,38 @@ def save_slicesignal():
     em_data = em_data.T
     bw_data = bw_data.T
     ma_data = ma_data.T
+    em_data=em_data.reshape(1,-1)
+    bw_data=bw_data.reshape(1,-1)
+    ma_data=ma_data.reshape(1,-1)
 
-    print(ppgsignal1.shape, ppgsignal2.shape, bw_data.shape)
+    Repetive_em_data=[]
+    Repetive_bw_data = []
+    Repetive_ma_data = []
+    for i in range(5):
+        Repetive_em_data.append(em_data)
+        Repetive_ma_data.append(ma_data)
+        Repetive_bw_data.append(bw_data)
+    Repetive_em_data=np.array(Repetive_em_data)
+    Repetive_bw_data = np.array(Repetive_bw_data)
+    Repetive_ma_data = np.array(Repetive_ma_data)
+    Repetive_em_data=Repetive_em_data.reshape(1,-1)
+    Repetive_ma_data=Repetive_ma_data.reshape(1,-1)
+    Repetive_bw_data=Repetive_bw_data.reshape(1,-1)
+    # print(Repetive_em_data.shape)
+    # return
+
+    # print(ppgsignal1.shape, ppgsignal2.shape,ecgsignal.shape, bw_data.shape)
+    print('noisy data shape:',Repetive_em_data.shape)
+    print('ecgsinal shape:',ecgsignal.shape)
     ppgsignal = np.concatenate((ppgsignal1, ppgsignal2), axis=1)
     # ppgsignal.append(ppgsignal1)
     # ppgsignal.append(ppgsignal2)
     # ppgsignal=ppgsignal1+ppgsignal2
     # ppgsignal=np.array(ppgsignal)
     # print(ppgsignal.shape)
-    print(ppgsignal.shape)
+    print('ppgsignal shape:',ppgsignal.shape)
 
-    def slice_signal(Clean, Noisy, length):
+    def slice_signal(Clean, Noisy, length,k):
         CleanLength = Clean.shape[1]
         NoisyLength = Noisy.shape[1]
         # Clean=preprocessing.scale(Clean)
@@ -54,59 +90,77 @@ def save_slicesignal():
         snr
         '''
         # for j in range(0, 60, 5):
+        # snr
         for j in range(0, 20, 5):
+            # signal arrange
             for i in range(0, TotalLength - length, length):
+
                 # print(i)
                 # for i in range(1):
-                fragppg = Clean[0, i:i + 1000].reshape(-1)
-                fragppg = preprocessing.scale(fragppg)
-                fragnoisy = Noisy[0, i:i + 1000].reshape(-1)
-                ppgcleanfrag.append(fragppg)
+                fragcleansig = Clean[0, i:i +length].reshape(-1)
+                # fragcleansig = preprocessing.scale(fragcleansig)
+                fragnoisy = Noisy[0, i:i + length].reshape(-1)
+                syncleanfraq.append(fragcleansig)
                 noisyfrag.append(fragnoisy)
                 '''
                 calculate gain
                 '''
-                gain = calculategain(j, fragppg, fragnoisy)
+                gain = calculategain(j, fragcleansig, fragnoisy)
                 # print("gain:",gain)
                 # gain=1
                 key = str(j) + "dB"
 
-                if i != 0:
-                    ppgnoisyfrag[key].append(generate_signal(gain, fragppg, fragnoisy))
+                # if k==0 and i==0:
+                if i==0:
+                    synnoisyfraq[key] = [generate_signal(gain, fragcleansig, fragnoisy)]
                 else:
-                    ppgnoisyfrag[key] = [generate_signal(gain, fragppg, fragnoisy)]
-
+                    synnoisyfraq[key].append(generate_signal(gain, fragcleansig, fragnoisy))
     '''
     save clean,noisy,synthetic signal
     '''
 
     TotalNoisyData = {}
-    TotalNoisyData['ma'] = ma_data
-    TotalNoisyData['bw'] = bw_data
-    TotalNoisyData['em'] = em_data
+    # TotalNoisyData['ma'] = ma_data
+    # TotalNoisyData['bw'] = bw_data
+    # TotalNoisyData['em'] = em_data
+    TotalNoisyData['ma'] = Repetive_ma_data
+    TotalNoisyData['bw'] = Repetive_bw_data
+    TotalNoisyData['em'] = Repetive_em_data
     TypeNoisy = ['ma', 'bw', 'em']
+
     for i, type in enumerate(TypeNoisy):
-        # ppgcleanfrag = []
-        ppgnoisyfrag = {}
+        # syncleanfraq = []
+        CurNoisylength=TotalNoisyData[type].shape[1]
+        synnoisyfraq = {}
         noisyfrag = []
-        slice_signal(ppgsignal, TotalNoisyData[type], SignalLength)
-        # print(np.array(ppgcleanfrag).shape)
-        noisyname = ("{}.mat".format(type))
-        savemat(noisyname, {"sig": np.array(noisyfrag)})
+        # current noisy signal length < pure noisy signal length
+        # if ecgsignal.shape[1]>CurNoisylength:
+        #     for k in range(int(ecgsignal.shape[1]/CurNoisylength)):
+        #         # print(k)
+        #         TempEcg=ecgsignal[0,k*CurNoisylength:(k+1)*CurNoisylength]
+        #         TempEcg=TempEcg.reshape(1,-1)
+        #         slice_signal(TempEcg, TotalNoisyData[type], SignalLength,k)
+        #     # print(np.array(syncleanfraq).shape)
+        #         if k==0:
+        #             noisyname = ("{}.mat".format(type))
+        #             savemat(noisyname, {"sig": np.array(noisyfrag)})
+        # else:
+
+        slice_signal(ecgsignal,TotalNoisyData[type],SignalLength,0)
         for j in range(0, 20, 5):
             key = str(j) + "dB"
             # print(type, key)
-            syntheticname = ("ppg_{}_{}".format(type, key))
-            savemat(syntheticname, {"sig": np.array(ppgnoisyfrag[key])})
-    cleanname = ("ppg_clean.mat")
-    savemat(cleanname, {"sig": np.array(ppgcleanfrag)})
+            syntheticname = ("newOwnCollectData/ownecg_{}_{}".format(type, key))
+            savemat(syntheticname, {"sig": np.array(synnoisyfraq[key])})
+    cleanname = ("newOwnCollectData/ownecg_clean.mat")
+    savemat(cleanname, {"sig": np.array(syncleanfraq)})
 
 
 
 
 
 # slice_signal(ppgsignal,em_data,1000)
-# print(np.array(ppgcleanfrag).shape)
+# print(np.array(syncleanfraq).shape)
 # a=np.array([1,3,5,6])
 # b=a[0:4]
 # print(type(b),b.shape)
@@ -119,10 +173,10 @@ plot the different snr noisy signal
 # for j in range(0,20,5):
 #     key=str(j)+"dB"
 #     print(key)
-#     tempsig=np.array(ppgnoisyfrag[key])
+#     tempsig=np.array(synnoisyfraq[key])
 #     for k in range(tempsig.shape[0]):
-#         # plt.plot(ppgcleanfrag[k],label='original')
-#         plt.plot(ppgcleanfrag[k],label='scale')
+#         # plt.plot(syncleanfraq[k],label='original')
+#         plt.plot(syncleanfraq[k],label='scale')
 #         plt.plot(tempsig[k],label='noisy')
 #         plt.title("snr:{},noisy:em".format(key))
 #         plt.legend()
@@ -131,68 +185,151 @@ plot the different snr noisy signal
 
 
 def GetDataSet():
-    total_noisy_ppg=[]
-    clean_ppg_path='/home/wcj/CurrentProject/ECGDenoising/ppg_clean.mat';
-    original_data=loadmat(clean_ppg_path);
-    clean_ppg=original_data['sig']
-    # print('clean ppg shape:',clean_ppg.shape)
+    total_noisy_sig=[]
+    # clean_sig_path='/home/wcj/CurrentProject/ECGDenoising/ppg_clean.mat'
+    # clean_sig_path='/home/wcj/CurrentProject/ECGDenoising/mitecg_clean.mat'
+    clean_sig_path = '/home/wcj/CurrentProject/ECGDenoising/newOwnCollectData/ownecg_clean.mat'
+    original_data=loadmat(clean_sig_path);
+    clean_sig=original_data['sig']
+    print('clean sig shape:',clean_sig.shape)
 
     TypeNoisy = ['ma', 'bw', 'em']
     for i, type in enumerate(TypeNoisy):
         for j in range(0, 20, 5):
             key = str(j) + "dB"
             # print(type, key)
-            noisy_ppg_path='/home/wcj/CurrentProject/ECGDenoising/ppg_'+str(type)+'_'+key+'.mat'
-            original_data = loadmat(noisy_ppg_path);
-            noisy_ppg = original_data['sig']
-            total_noisy_ppg.append(noisy_ppg)
-    total_noisy_ppg=np.array(total_noisy_ppg).reshape(-1,1000)
-    # print('noisy ppg shape',total_noisy_ppg.shape)
+            noisy_sig_path='/home/wcj/CurrentProject/ECGDenoising/newOwnCollectData/ownecg_'+str(type)+'_'+key+'.mat'
+            original_data = loadmat(noisy_sig_path);
+            noisy_sig = original_data['sig']
+            total_noisy_sig.append(noisy_sig)
+    total_noisy_sig=np.array(total_noisy_sig).reshape(-1,1000)
+    print('noisy sig shape',total_noisy_sig.shape)
 
 
 
     '''
     split the noisy and respond clean data to make train data
     '''
-    total_count=clean_ppg.shape[0]
+    total_count=clean_sig.shape[0]
     # print(total_count)
     index1=int(total_count*(2/3))
     index2=int(total_count*(5/6))
     # print(index1,index2)
-    TrainCleanSet=clean_ppg[0:index1][:]
-    TrainNoisySet=total_noisy_ppg[0:index1][:]
+    TrainCleanSet=clean_sig[0:index1][:]
+    TrainNoisySet=total_noisy_sig[0:index1][:]
 
-    ValCleanSet=clean_ppg[index1:index2][:]
-    ValNoisySet=total_noisy_ppg[index1:index2][:]
+    ValCleanSet=clean_sig[index1:index2][:]
+    ValNoisySet=total_noisy_sig[index1:index2][:]
 
-    TestCleanSet=clean_ppg[index2:total_count][:]
-    TestNoisytSet=total_noisy_ppg[index2:total_count][:]
+    TestCleanSet=clean_sig[index2:total_count][:]
+    TestNoisytSet=total_noisy_sig[index2:total_count][:]
 
-    # print('TrainCleanSet:',TrainCleanSet.shape)
-    # print('TrainNoisySet:',TrainNoisySet.shape)
-    # print('ValCleanSet:',ValCleanSet.shape)
-    # print('ValNoisySet:',ValNoisySet.shape)
-    # print('TestCleanSet:',TestCleanSet.shape)
-    # print('TestNoisytSet:',TestNoisytSet.shape)
+    print('TrainCleanSet:',TrainCleanSet.shape)
+    print('TrainNoisySet:',TrainNoisySet.shape)
+    print('ValCleanSet:',ValCleanSet.shape)
+    print('ValNoisySet:',ValNoisySet.shape)
+    print('TestCleanSet:',TestCleanSet.shape)
+    print('TestNoisytSet:',TestNoisytSet.shape)
 
     return TrainCleanSet,TrainNoisySet,ValCleanSet,ValNoisySet,TestCleanSet,TestNoisytSet
 
     '''
-    noisy_ppg_path = '/home/wcj/CurrentProject/ECGDenoising/ppg_ma_0dB.mat';
-    original_data = loadmat(noisy_ppg_path);
-    noisy_ppg = original_data['sig']
+    noisy_sig_path = '/home/wcj/CurrentProject/ECGDenoising/ppg_ma_0dB.mat';
+    original_data = loadmat(noisy_sig_path);
+    noisy_sig = original_data['sig']
 
-    noisy_ppg_path = '/home/wcj/CurrentProject/ECGDenoising/ppg_bw_0dB.mat';
-    original_data = loadmat(noisy_ppg_path);
-    noisy_ppg = original_data['sig']
-    print('noisy ppg shape', noisy_ppg.shape)
+    noisy_sig_path = '/home/wcj/CurrentProject/ECGDenoising/ppg_bw_0dB.mat';
+    original_data = loadmat(noisy_sig_path);
+    noisy_sig = original_data['sig']
+    print('noisy ppg shape', noisy_sig.shape)
 
-    noisy_ppg_path = '/home/wcj/CurrentProject/ECGDenoising/ppg_em_0dB.mat';
-    original_data = loadmat(noisy_ppg_path);
-    noisy_ppg = original_data['sig']
-    print('noisy ppg shape', noisy_ppg.shape)
+    noisy_sig_path = '/home/wcj/CurrentProject/ECGDenoising/ppg_em_0dB.mat';
+    original_data = loadmat(noisy_sig_path);
+    noisy_sig = original_data['sig']
+    print('noisy ppg shape', noisy_sig.shape)
     '''
+class OriData(data.Dataset):
+    def __init__(self, clean,noisy):
+        self.cleandata = clean
+        self.noisydata = noisy
+    def __getitem__(self, index):
+        cleansignal = self.cleandata[index]
+        noisysignal=self.noisydata[index]
+        return cleansignal,noisysignal
+    def __len__(self):
+        return self.cleandata.shape[0]
+def trainAutoEncoder():
+    batch_size=128
+    epochs=50
+    iteration = 0
+    numepoch = 0
+    device = 'cpu'
+    if torch.cuda.is_available:
+        # device = t.device('cuda:0' if t.cuda.is_available() else 'cpu')
+        device = 'cuda'
+    CUDA = (device == 'cuda')
+    TrainCleanSet, TrainNoisySet, ValCleanSet, ValNoisySet, TestCleanSet, TestNoisytSet = GetDataSet()
+    DAE = AutoEncoder(1, 32, 512, 1)
+    print('Total model parameters: ', DAE.get_n_params())
+    trainset=OriData(TrainCleanSet,TrainNoisySet)
+    valset=OriData(ValCleanSet,ValNoisySet)
+    testset=OriData(TestCleanSet,TestNoisytSet)
+    print(len(trainset),len(valset),len(testset))
+    TrainLoader=DataLoader(trainset,batch_size=batch_size,shuffle=True,num_workers=8,pin_memory=CUDA)
+    ValLoader=DataLoader(valset,batch_size=batch_size,shuffle=False,num_workers=8,pin_memory=CUDA)
+    TestLoader=DataLoader(testset,batch_size=batch_size,shuffle=False,num_workers=8,pin_memory=CUDA)
+    print(TrainLoader.__len__(),ValLoader.__len__(),TestLoader.__len__())
+    DAE.to(device)
+    DAE=DAE.double()
+    optimizer = optim.Adam(DAE.parameters(), lr=0.001)
+    # optimizer = optim.RMSprop(DAE.parameters(), lr=0.001)
+    scheduler = lr_scheduler.StepLR(optimizer, 10, 0.1)  # # 每过3个epoch，学习率乘以0.1
+    criterion = nn.MSELoss().to(device)
+    # criterion=nn.L1Loss().to(device)
+    # criterion=nn.BCELoss().to(device)
+    for epoch in range(epochs):
+        numepoch += 1
+        for i, data in enumerate(TrainLoader,start=1):
+            iteration += 1
+            error=0.0
+            if len(data)==2:
+                clean,noisy=data
+            else:
+                raise ValueError('Returned {} elements per '
+                                 'sample?'.format(len(data)))
+            # for k in range(5):
+            #     plt.plot(clean[k],label='clean')
+            #     plt.plot(noisy[k],label='noisy')
+            #     plt.legend()
+            #     plt.show()
+            # return
+            # clean = clean.unsqueeze(1)
+            # noisy = noisy.unsqueeze(1)
+            clean = clean.to(device)
+            noisy = noisy.to(device)
+            # print(noisy.shape)
+            optimizer.zero_grad()
+            output=DAE(noisy)
+            loss=criterion(output,clean)
+            # print(output.shape,clean.shape)
+            loss.backward()
+            optimizer.step()
+            error+=loss.item()
+            if i % 10 == 9:
+                print('[%d,%5d] loss %f' % (epoch + 1, i + 1, error/10))
+                error = 0.0
+
+    print('finish training')
+    savemodelname=datetime.datetime.now().strftime("%Y%m%d-%H%M%S")+('epoch-%d-iteration%d.pt'%(numepoch,iteration))
+    model = DAE.cpu()
+    x = torch.rand(1, 1000)
+    x=x.double()
+    traced_module = torch.jit.trace(model, x)
+    traced_module.save(savemodelname)
+    # torch.save(DAE.state_dict(),savemodelname)
+
 def train():
+    model=ECGDAE(1, 1000).build()
     model=ECGDAE(1, 1000).build()
     opt = tf.keras.optimizers.Adam(lr=0.0001)
     model.compile(loss="mse", optimizer=opt,
@@ -212,7 +349,79 @@ def train():
     print('export saved model.')
 # steps_per_epoch=len(TrainCleanSet) // 100,
 # init()
-# save_slicesignal()
+def TestAutoEncoder():
+
+    '''
+    20200829-112830epoch-50-iteration11000  train on self-collected signal
+    20200829-114619epoch-100-iteration22000.pt train on self-collected signal (only wcj)
+    20200829-172054epoch-50-iteration16250.pt train on self-collected signal (five people data)
+    '''
+
+    # model=AutoEncoder(1, 32, 256, 1)
+    device = 'cpu'
+    if torch.cuda.is_available:
+        # device = t.device('cuda:0' if t.cuda.is_available() else 'cpu')
+        device = 'cuda'
+
+    # model.load_state_dict(torch.load('./20200828-092545epoch-1-iteration325.pt'))
+    model=torch.jit.load('./20200830-202256epoch-50-iteration19100.pt')
+    # model_dict = model.state_dict()
+    # print(model)
+    TrainCleanSet, TrainNoisySet, ValCleanSet, ValNoisySet, TestCleanSet, TestNoisytSet = GetDataSet()
+    model.to(device)
+    model=model.double()
+    model.eval()
+    for i in range(5000,5100,5):
+    # for i in range(ValNoisySet.shape[0]):
+
+        testdata=ValNoisySet[i]
+        plt.plot(testdata,label='noisy')
+        # testdata = preprocessing.scale(testdata)
+        cleandata=ValCleanSet[i]
+        plt.plot(cleandata,label='clean')
+        testdata=testdata.reshape(1,-1)
+        testdata=torch.from_numpy(testdata)
+        testdata=testdata.to(device)
+        # print(testdata.shape)
+        output=model(testdata)
+        # print(output.shape)
+        output=output.detach().cpu().numpy()
+        plt.plot(output[0],label='denoise')
+        plt.legend()
+        plt.show()
+
+        # break
+def TestOnRealNoisyData():
+    device = 'cpu'
+    if torch.cuda.is_available:
+        # device = t.device('cuda:0' if t.cuda.is_available() else 'cpu')
+        device = 'cuda'
+
+    # model.load_state_dict(torch.load('./20200828-092545epoch-1-iteration325.pt'))
+    model = torch.jit.load('./20200830-202256epoch-50-iteration19100.pt')
+    # model_dict = model.state_dict()
+    # print(model)
+    noisysig=load_ecgsegment('./ecg_wcj_8_27_noisy.mat')
+    print(noisysig.shape)
+    model.to(device)
+    model = model.double()
+    model.eval()
+    for i in [4, 5]:
+        # for i in range(ValNoisySet.shape[0]):
+
+        testdata = noisysig[i]
+        testdata=preprocessing.scale(testdata)
+        testdata = testdata.reshape(1, -1)
+        plt.plot(testdata[0],label='noisy')
+        testdata = torch.from_numpy(testdata)
+        testdata = testdata.to(device)
+        # print(testdata.shape)
+        output = model(testdata)
+        output = output.detach().cpu().numpy()
+        print(output.shape)
+        plt.plot(output[0], label='denoise')
+        plt.legend()
+        plt.show()
 
 def test():
     model=keras.models.load_model('./data/tf_model_savedmodel')
@@ -245,12 +454,52 @@ def test():
     # print(GeneratePPG.shape)
 
 if __name__=='__main__':
-    TrainCleanSet, TrainNoisySet, ValCleanSet, ValNoisySet, TestCleanSet, TestNoisytSet=GetDataSet()
-    TrainCleanSet = TrainCleanSet.reshape(-1,1000,1);
-    TrainNoisySet = TrainNoisySet.reshape(-1, 1000,1);
-    ValCleanSet = ValCleanSet.reshape(-1, 1000,1);
-    ValNoisySet = ValNoisySet.reshape(-1, 1000,1);
-    TestCleanSet = TestCleanSet.reshape(-1, 1000,1);
-    TestNoisytSet = TestNoisytSet.reshape(-1, 1000,1);
+    # load_ecg('/home/wcj/CurrentProject/EmotionRecongntion/dreamer-data/data1.npy')
+    # save_slicesignal()
+
+    #show clean and noisy data
+    # TrainCleanSet, TrainNoisySet, ValCleanSet, ValNoisySet, TestCleanSet, TestNoisytSet=GetDataSet()
+    # TrainCleanSet = TrainCleanSet.reshape(-1,1000,1)
+    # TrainNoisySet = TrainNoisySet.reshape(-1, 1000,1)
+    # ValCleanSet = ValCleanSet.reshape(-1, 1000,1)
+    # ValNoisySet = ValNoisySet.reshape(-1, 1000,1)
+    # TestCleanSet = TestCleanSet.reshape(-1, 1000,1)
+    # TestNoisytSet = TestNoisytSet.reshape(-1, 1000,1)
+    # for i in range(5000,5100,5):
+    #     plt.plot(ValCleanSet[i],label='clean')
+    #     plt.plot(ValNoisySet[i],label='noisy')
+    #     plt.legend()
+    #     plt.show()
+
+
+    # print(TrainCleanSet.shape,TrainNoisySet.shape)
     # train()
-    test()
+    # test()
+    # trainAutoEncoder()
+    TestAutoEncoder()
+    # TestOnRealNoisyData()
+
+
+    # normalize in pytorch demo
+    # a=np.array([[1.,2.,3.],[4.,5.,6.]])
+    # a=torch.from_numpy(a)
+    # input=a
+    # mean = torch.mean(input, dim=1, keepdim=True)
+    # std = torch.std(input, dim=1, unbiased=False, keepdim=True)
+    # print(mean)
+    # print(std)
+    # input-=mean
+    # input/=std
+    # print(input)
+
+    # apped array reshape demo
+    # a=np.array([[1,2,3,4]])
+    # b=np.array([[5,6,7,8]])
+    # c=np.array([[9,10,11,12]])
+    # d=[]
+    # d.append(a)
+    # d.append(b)
+    # d.append(c)
+    # d=np.array(d)
+    # d=d.reshape(1,-1)
+    # print(d)
