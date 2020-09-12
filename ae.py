@@ -48,7 +48,7 @@ class Encoder(nn.Module):
             output = nn.parallel.data_parallel(self.enc, input, range(self.ngpu))
         else:
             output = self.enc(input)
-            print('Encoder output shape:', output.shape)
+            # print('Encoder output shape:', output.shape)
         return output
 
 

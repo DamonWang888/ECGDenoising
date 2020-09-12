@@ -184,6 +184,38 @@ plot the different snr noisy signal
 #         break
 
 
+def GetPPGDataSet():
+    clean_sig_path = '/home/wcj/CurrentProject/ECGDenoising/Data12/clean/CleanPPG.mat'
+    noisy_sig_path='/home/wcj/CurrentProject/ECGDenoising/Data12/noisy/NoisyPPG.mat'
+    clean_sig=load_ppg(clean_sig_path)
+    total_noisy_sig=load_ppg(noisy_sig_path)
+    '''
+        split the noisy and respond clean data to make train data
+        '''
+    total_count = clean_sig.shape[0]
+    # print(total_count)
+    index1 = int(total_count * (2 / 3))
+    index2 = int(total_count * (5 / 6))
+    # print(index1,index2)
+    TrainCleanSet = clean_sig[0:index1][:]
+    TrainNoisySet = total_noisy_sig[0:index1][:]
+
+    ValCleanSet = clean_sig[index1:index2][:]
+    ValNoisySet = total_noisy_sig[index1:index2][:]
+
+    TestCleanSet = clean_sig[index2:total_count][:]
+    TestNoisytSet = total_noisy_sig[index2:total_count][:]
+
+    print('TrainCleanSet:', TrainCleanSet.shape)
+    print('TrainNoisySet:', TrainNoisySet.shape)
+    print('ValCleanSet:', ValCleanSet.shape)
+    print('ValNoisySet:', ValNoisySet.shape)
+    print('TestCleanSet:', TestCleanSet.shape)
+    print('TestNoisytSet:', TestNoisytSet.shape)
+
+    return TrainCleanSet, TrainNoisySet, ValCleanSet, ValNoisySet, TestCleanSet, TestNoisytSet
+    pass
+
 def GetDataSet():
     total_noisy_sig=[]
     # clean_sig_path='/home/wcj/CurrentProject/ECGDenoising/ppg_clean.mat'
@@ -259,8 +291,8 @@ class OriData(data.Dataset):
     def __len__(self):
         return self.cleandata.shape[0]
 def trainAutoEncoder():
-    batch_size=128
-    epochs=1
+    batch_size=64
+    epochs=200
     iteration = 0
     numepoch = 0
     device = 'cpu'
@@ -268,7 +300,8 @@ def trainAutoEncoder():
         # device = t.device('cuda:0' if t.cuda.is_available() else 'cpu')
         device = 'cuda'
     CUDA = (device == 'cuda')
-    TrainCleanSet, TrainNoisySet, ValCleanSet, ValNoisySet, TestCleanSet, TestNoisytSet = GetDataSet()
+    # TrainCleanSet, TrainNoisySet, ValCleanSet, ValNoisySet, TestCleanSet, TestNoisytSet = GetDataSet()
+    TrainCleanSet, TrainNoisySet, ValCleanSet, ValNoisySet, TestCleanSet, TestNoisytSet = GetPPGDataSet()
     DAE = AutoEncoder(1, 32, 512, 1)
     print('Total model parameters: ', DAE.get_n_params())
     trainset=OriData(TrainCleanSet,TrainNoisySet)
@@ -323,7 +356,7 @@ def trainAutoEncoder():
                 error = 0.0
 
     print('finish training')
-    savemodelname=datetime.datetime.now().strftime("%Y%m%d-%H%M%S")+('epoch-%d-iteration%d.pt'%(numepoch,iteration))
+    savemodelname=datetime.datetime.now().strftime("ppg-%Y%m%d-%H%M%S")+('epoch-%d-iteration%d.pt'%(numepoch,iteration))
     model = DAE.cpu()
     model=model.eval()
     x = torch.rand(1, 1000)
@@ -359,6 +392,7 @@ def TestAutoEncoder():
     20200829-112830epoch-50-iteration11000  train on self-collected signal
     20200829-114619epoch-100-iteration22000.pt train on self-collected signal (only wcj)
     20200829-172054epoch-50-iteration16250.pt train on self-collected signal (five people data)
+
     '''
 
     # model=AutoEncoder(1, 32, 256, 1)
@@ -368,31 +402,34 @@ def TestAutoEncoder():
         device = 'cuda'
 
     # model.load_state_dict(torch.load('./20200828-092545epoch-1-iteration325.pt'))
-    model=torch.jit.load('./20200831-172652epoch-1-iteration382.pt')
+    model=torch.jit.load('./20200831-150507epoch-50-iteration19100.pt')
     # model_dict = model.state_dict()
     # print(model)
-    TrainCleanSet, TrainNoisySet, ValCleanSet, ValNoisySet, TestCleanSet, TestNoisytSet = GetDataSet()
+    # TrainCleanSet, TrainNoisySet, ValCleanSet, ValNoisySet, TestCleanSet, TestNoisytSet = GetDataSet()
+    data=loadmat('/home/wcj/CurrentProject/ECGDenoising/ecg_wcj_9_2_noisy_android.mat')
+    ValNoisySet=data['ecg_segment']
+    print(ValNoisySet.shape)
     model.to(device)
     # model=model.double()
     model.eval()
-    for i in range(1):
+    for i in range(63):
     # for i in range(5000,5100,5):
     # for i in range(ValNoisySet.shape[0]):
 
         testdata=ValNoisySet[i]
         plt.plot(testdata,label='noisy')
         # testdata = preprocessing.scale(testdata)
-        cleandata=ValCleanSet[i]
-        plt.plot(cleandata,label='clean')
+        # cleandata=ValCleanSet[i]
+        # plt.plot(cleandata,label='clean')
         testdata=testdata.reshape(1,-1)
         testdata=torch.from_numpy(testdata)
         testdata=testdata.to(device)
         testdata = testdata.float()
-        print('******:',testdata.type())
+        # print('******:',testdata.type())
         # testdata = testdata.float()
         # print(testdata.shape)
         output=model(testdata)
-        print('******:',output.type())
+        # print('******:',output.type())
         # print(output.shape)
         output=output.detach().cpu().numpy()
         plt.plot(output[0],label='denoise')
@@ -432,6 +469,55 @@ def TestOnRealNoisyData():
         plt.plot(output[0], label='denoise')
         plt.legend()
         plt.show()
+def TestAndCombineSignal(InputSignalPath):
+    num=0
+    device = 'cpu'
+    if torch.cuda.is_available:
+        # device = t.device('cuda:0' if t.cuda.is_available() else 'cpu')
+        device = 'cuda'
+    model = torch.jit.load('./ppg-20200912-100326epoch-200-iteration3800.pt')
+    OutPutSignal=[]
+    SliceLength=1000
+    data=loadmat(InputSignalPath)
+    roadslice=InputSignalPath.split('/')
+    filename=roadslice[-1]
+    # print(filename)
+    newfilename='Denoise_'+filename
+    # print(newfilename)
+    InputSignal=data['sig'][1]
+    # InputSignal=np.random.rand(1,10024)
+
+
+    # slice the signal and denoise
+    for i in range(0,InputSignal.shape[0]-SliceLength+1,SliceLength):
+        num=num+1
+        # print('i:',i)
+        TempSignal=InputSignal[i:i+SliceLength]
+        #normalize
+
+        TempSignal=preprocessing.scale(TempSignal)
+        TempSignal=np.reshape(TempSignal,(1,-1))
+        # print('input shape:',TempSignal.shape)
+
+        # plt.plot(TempSignal[0],label='noisy')
+        TestData=torch.from_numpy(TempSignal)
+        TestData = TestData.float()
+        output = model(TestData)
+        output = output.detach().cpu().numpy()
+        # print('output shape:',output.shape)
+        # plt.plot(output[0],label='denoise')
+        # plt.legend()
+        OutPutSignal.append(output)
+        plt.show()
+        # if num==5:
+        #     break
+    # plt.show()
+    OutPutSignal=np.array(OutPutSignal)
+    OutPutSignal=OutPutSignal.reshape(1,-1)
+    print(OutPutSignal.shape)
+    savemat(newfilename,{'cleansig':OutPutSignal})
+
+
 
 def test():
     model=keras.models.load_model('./data/tf_model_savedmodel')
@@ -486,8 +572,13 @@ if __name__=='__main__':
     # train()
     # test()
     # trainAutoEncoder()
-    TestAutoEncoder()
+    # TestAutoEncoder()
     # TestOnRealNoisyData()
+    files=os.listdir('./Data10/original')
+    for file in files:
+        filepath='./Data10/original/'+file
+        # TestAndCombineSignal('./Data12/original/DATA_S01_T01_E01.mat')
+        TestAndCombineSignal(filepath)
 
 
     # normalize in pytorch demo

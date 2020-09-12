@@ -15,6 +15,50 @@ plt.rcParams['figure.figsize']=(30,10)
 # em:electrode motion artifact (in record 'em')
 # *****link**********
 # https://physionet.org/content/nstdb/1.0.0/
+def combine_npy(dir1,dir2):
+    data1=np.load(dir1,allow_pickle=True)
+    data2=np.load(dir2,allow_pickle=True)
+    specialsub=data1[2]
+    # data2=np.squeeze(data2,axis=0)
+    # data2=np.array(data2)
+    specialsub=np.array(specialsub).reshape(1,-1)
+    print(data2.shape,specialsub.shape)
+    newsub=np.concatenate((data2,specialsub),1).reshape(-1)
+    newsub=newsub.tolist()
+    print(len(newsub))
+    newdata=[]
+    for i in range(data1.shape[0]):
+        if i==2:
+            newdata.append(newsub)
+        else:
+            newdata.append(data1[i])
+    newdata=np.array(newdata)
+    # print(newdata[2].shape)
+    # ipdb.set_trace()
+    np.save('label3.npy',newdata)
+
+def load_mat_to_npy(dir):
+    data=os.listdir(dir)
+    totalEcgData=[]
+    totalGsrData=[]
+    totallabel=[]
+    for sub in data:
+        filedir=dir+'/'+str(sub)
+        print(filedir)
+        data=loadmat(filedir)
+        ecg=data['ecg_segment']
+        gsr=data['gsr_segment']
+        label=data['label']
+        label=label.reshape(-1)
+        totalEcgData.append(ecg)
+        totalGsrData.append(gsr)
+        totallabel.append(label)
+    # ipdb.set_trace()
+    np.save('Ecg.npy',np.array(totalEcgData))
+    np.save('EcgGsrLabel.npy',np.array(totallabel))
+    np.save('Gsr.npy',np.array(totalGsrData))
+    # print(data)
+
 def load_data(fileDir):
     file_path_list = []
     valid_file_extensions = [".dat"]
@@ -112,6 +156,9 @@ def generate_signal(gain,clean,noisy):
     return noisydata
 
 if __name__ == '__main__':
+    load_mat_to_npy('/home/wcj/CurrentProject/ECGDenoising/OwnEcgGsrData')
+    # combine_npy('/home/wcj/CurrentProject/EmotionRecongntion/dreamer-data/label1.npy','/home/wcj/CurrentProject/EmotionRecongntion/dreamer-data/label_xgc.npy')
+
     '''
     ecgpath = '/home/wcj/CurrentProject/EmotionRecongntion/dreamer-data/data1.npy'
     load_ecg(ecgpath)
